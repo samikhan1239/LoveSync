@@ -1,0 +1,33 @@
+{
+  /* Animated Background Hearts */
+}
+<div className="absolute inset-0 overflow-hidden z-0">
+  {Array.from({ length: 15 }).map((_, i) => (
+    <motion.div
+      key={`heart-bg-${i}`}
+      className="absolute text-red-300"
+      initial={{
+        x:
+          Math.random() *
+          (typeof window !== "undefined" ? window.innerWidth : 1920),
+        y: (typeof window !== "undefined" ? window.innerHeight : 1080) + 100,
+        opacity: 0.3,
+        scale: 0.5 + Math.random(),
+      }}
+      animate={{
+        y: -100,
+        rotate: [0, 360],
+        scale: [0.5, 1.2, 0.5],
+        opacity: [0.3, 0.6, 0.3],
+      }}
+      transition={{
+        duration: 8 + Math.random() * 8,
+        repeat: Number.POSITIVE_INFINITY,
+        ease: "easeInOut",
+        delay: Math.random() * 4,
+      }}
+    >
+      <Heart size={15 + Math.random() * 15} fill="currentColor" />
+    </motion.div>
+  ))}
+</div>;
