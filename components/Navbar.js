@@ -4,7 +4,18 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useSession, signOut } from "next-auth/react";
 import { Button } from "@/components/ui/button";
-import { Heart, Menu, X, Bell, User, Search, Plus } from "lucide-react";
+import {
+  Heart,
+  Menu,
+  X,
+  Bell,
+  User,
+  Search,
+  Plus,
+  LogOut,
+  LayoutDashboard,
+  Users,
+} from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -23,12 +34,10 @@ export default function Navbar() {
     const handleScroll = () => {
       const currentScrollY = window.scrollY;
 
-      // Show navbar at the top of the page
       if (currentScrollY <= 10) {
         setIsVisible(true);
         setIsScrolled(false);
       } else {
-        // Hide navbar when scrolling down, show when scrolling up
         setIsVisible(currentScrollY < lastScrollY);
         setIsScrolled(true);
       }
@@ -55,8 +64,8 @@ export default function Navbar() {
             </span>
           </Link>
 
-          {/* Desktop Navigation */}
-          <nav className="hidden md:flex items-center space-x-8">
+          {/* Desktop Navigation (visible on lg and above) */}
+          <nav className="hidden lg:flex items-center space-x-8">
             <Link
               href="/"
               className="text-white/80 hover:text-white transition-colors text-sm font-medium"
@@ -67,10 +76,10 @@ export default function Navbar() {
               href="/profiles"
               className="text-white/80 hover:text-white transition-colors text-sm font-medium"
             >
-              Browse Profiles
+              Profiles
             </Link>
             <Link
-              href="#testimonials"
+              href="/dashboard"
               className="text-white/80 hover:text-white transition-colors text-sm font-medium"
             >
               Success Stories
@@ -83,9 +92,9 @@ export default function Navbar() {
             </Link>
           </nav>
 
-          {/* Desktop Action Buttons */}
-          <div className="hidden md:flex items-center space-x-3 lg:space-x-4">
-            <Link href="/profiles">
+          {/* Desktop Action Buttons (visible on lg and above) */}
+          <div className="hidden lg:flex items-center space-x-4">
+            <Link href="/search">
               <Button
                 variant="ghost"
                 size="icon"
@@ -108,7 +117,7 @@ export default function Navbar() {
               <span className="sr-only">Notifications</span>
             </Button>
 
-            {status === "authenticated" ? (
+            {status === "authenticated" && session?.user?.id ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button
@@ -128,7 +137,7 @@ export default function Navbar() {
                 >
                   <DropdownMenuItem className="hover:bg-white/10 cursor-pointer">
                     <Link
-                      href="/my-profile"
+                      href={`/user/${session.user.id}`}
                       className="flex items-center w-full"
                     >
                       <User className="h-4 w-4 mr-2" />
@@ -150,22 +159,27 @@ export default function Navbar() {
                       className="flex items-center w-full"
                     >
                       <Plus className="h-4 w-4 mr-2" />
-                      Create Profile
+                      Edit Profile
                     </Link>
                   </DropdownMenuItem>
-                  <DropdownMenuItem className="hover:bg-white/10 cursor-pointer">
-                    <Link href="/settings" className="flex items-center w-full">
-                      <span className="h-4 w-4 mr-2" />
-                      Settings
-                    </Link>
-                  </DropdownMenuItem>
+                  {session?.user?.role === "admin" && (
+                    <DropdownMenuItem className="hover:bg-white/10 cursor-pointer">
+                      <Link
+                        href="/admin-dashboard"
+                        className="flex items-center w-full"
+                      >
+                        <LayoutDashboard className="h-4 w-4 mr-2" />
+                        Admin Dashboard
+                      </Link>
+                    </DropdownMenuItem>
+                  )}
                   <DropdownMenuItem className="hover:bg-white/10 cursor-pointer">
                     <Link
                       href="/"
                       onClick={() => signOut({ callbackUrl: "/" })}
                       className="flex items-center w-full"
                     >
-                      <span className="h-4 w-4 mr-2" />
+                      <LogOut className="h-4 w-4 mr-2" />
                       Logout
                     </Link>
                   </DropdownMenuItem>
@@ -180,7 +194,7 @@ export default function Navbar() {
             )}
 
             {status === "authenticated" && (
-              <Link href="/create-profile" className="hidden lg:block">
+              <Link href="/create-profile">
                 <Button className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white border-0 text-sm">
                   Create Profile
                 </Button>
@@ -188,26 +202,103 @@ export default function Navbar() {
             )}
           </div>
 
-          {/* Mobile Menu Button */}
-          <Button
-            variant="ghost"
-            size="icon"
-            className="md:hidden text-white"
-            onClick={() => setIsMenuOpen(!isMenuOpen)}
-          >
-            {isMenuOpen ? (
-              <X className="h-6 w-6" />
+          {/* Mobile Menu Button and Profile/Sign In */}
+          <div className="flex lg:hidden items-center space-x-3">
+            {status === "authenticated" && session?.user?.id ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    className="rounded-full bg-gradient-to-r from-pink-500 to-purple-600 p-[1px] hover:from-pink-600 hover:to-purple-700 h-9 w-9"
+                  >
+                    <div className="bg-black rounded-full h-full w-full flex items-center justify-center">
+                      <User className="h-4 w-4 md:h-5 md:w-5 text-white" />
+                    </div>
+                    <span className="sr-only">My Profile</span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent
+                  align="end"
+                  className="w-56 bg-black/80 backdrop-blur-lg border-slate-800 text-white"
+                >
+                  <DropdownMenuItem className="hover:bg-white/10 cursor-pointer">
+                    <Link
+                      href={`/user/${session.user.id}`}
+                      className="flex items-center w-full"
+                    >
+                      <User className="h-4 w-4 mr-2" />
+                      My Profile
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem className="hover:bg-white/10 cursor-pointer">
+                    <Link
+                      href="/connections"
+                      className="flex items-center w-full"
+                    >
+                      <Heart className="h-4 w-4 mr-2" />
+                      My Connections
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem className="hover:bg-white/10 cursor-pointer">
+                    <Link
+                      href="/create-profile"
+                      className="flex items-center w-full"
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Edit Profile
+                    </Link>
+                  </DropdownMenuItem>
+                  {session?.user?.role === "admin" && (
+                    <DropdownMenuItem className="hover:bg-white/10 cursor-pointer">
+                      <Link
+                        href="/admin-dashboard"
+                        className="flex items-center w-full"
+                      >
+                        <LayoutDashboard className="h-4 w-4 mr-2" />
+                        Admin Dashboard
+                      </Link>
+                    </DropdownMenuItem>
+                  )}
+                  <DropdownMenuItem className="hover:bg-white/10 cursor-pointer">
+                    <Link
+                      href="/"
+                      onClick={() => signOut({ callbackUrl: "/" })}
+                      className="flex items-center w-full"
+                    >
+                      <LogOut className="h-4 w-4 mr-2" />
+                      Logout
+                    </Link>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             ) : (
-              <Menu className="h-6 w-6" />
+              <Link href="/signin">
+                <Button className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white border-0 text-sm">
+                  Sign In
+                </Button>
+              </Link>
             )}
-            <span className="sr-only">Toggle Menu</span>
-          </Button>
+
+            <Button
+              variant="ghost"
+              size="icon"
+              className="text-white"
+              onClick={() => setIsMenuOpen(!isMenuOpen)}
+            >
+              {isMenuOpen ? (
+                <X className="h-6 w-6" />
+              ) : (
+                <Menu className="h-6 w-6" />
+              )}
+              <span className="sr-only">Toggle Menu</span>
+            </Button>
+          </div>
         </div>
       </div>
 
       {/* Mobile Menu */}
       {isMenuOpen && (
-        <div className="md:hidden bg-black/90 backdrop-blur-lg border-t border-slate-800">
+        <div className="lg:hidden bg-black/90 backdrop-blur-lg border-t border-slate-800">
           <div className="container mx-auto px-4 py-4 space-y-3">
             <Link
               href="/"
@@ -221,10 +312,10 @@ export default function Navbar() {
               className="block py-2 text-white/80 hover:text-white"
               onClick={() => setIsMenuOpen(false)}
             >
-              Browse Profiles
+              Profiles
             </Link>
             <Link
-              href="#testimonials"
+              href="/dashboard"
               className="block py-2 text-white/80 hover:text-white"
               onClick={() => setIsMenuOpen(false)}
             >
@@ -237,48 +328,7 @@ export default function Navbar() {
             >
               Contact
             </Link>
-            {status === "authenticated" ? (
-              <>
-                <Link
-                  href="/my-profile"
-                  className="block py-2 text-white/80 hover:text-white"
-                  onClick={() => setIsMenuOpen(false)}
-                >
-                  My Profile
-                </Link>
-                <Link
-                  href="/connections"
-                  className="block py-2 text-white/80 hover:text-white"
-                  onClick={() => setIsMenuOpen(false)}
-                >
-                  My Connections
-                </Link>
-                <Link
-                  href="/create-profile"
-                  className="block py-2 text-white/80 hover:text-white"
-                  onClick={() => setIsMenuOpen(false)}
-                >
-                  Create Profile
-                </Link>
-                <Link
-                  href="/settings"
-                  className="block py-2 text-white/80 hover:text-white"
-                  onClick={() => setIsMenuOpen(false)}
-                >
-                  Settings
-                </Link>
-                <Link
-                  href="/"
-                  onClick={() => {
-                    signOut({ callbackUrl: "/" });
-                    setIsMenuOpen(false);
-                  }}
-                  className="block py-2 text-white/80 hover:text-white"
-                >
-                  Logout
-                </Link>
-              </>
-            ) : (
+            {status !== "authenticated" && (
               <Link
                 href="/signin"
                 className="block py-2 text-white/80 hover:text-white"
@@ -287,18 +337,15 @@ export default function Navbar() {
                 Sign In
               </Link>
             )}
-            <div className="flex items-center space-x-4 pt-2 border-t border-slate-800">
-              <Button
-                variant="ghost"
-                size="icon"
-                className="relative text-white/80 hover:text-white hover:bg-white/10"
+            {status === "authenticated" && session?.user?.id && (
+              <Link
+                href={`/user/${session.user.id}`}
+                className="block py-2 text-white/80 hover:text-white"
+                onClick={() => setIsMenuOpen(false)}
               >
-                <Bell className="h-5 w-5" />
-                <span className="absolute -top-1 -right-1 bg-pink-500 text-white text-xs rounded-full h-4 w-4 flex items-center justify-center">
-                  2
-                </span>
-              </Button>
-            </div>
+                My Profile
+              </Link>
+            )}
           </div>
         </div>
       )}

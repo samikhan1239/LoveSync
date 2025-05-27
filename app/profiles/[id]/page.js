@@ -1,18 +1,15 @@
 "use client";
-import React from "react";
-import { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import { toast } from "sonner";
+import { toast, Toaster } from "sonner";
 import {
   Heart,
   User,
   Briefcase,
   Home,
-  Menu,
-  X,
   Filter,
   Eye,
   ArrowLeft,
@@ -28,6 +25,8 @@ import {
   Mail,
   Shield,
   AlertTriangle,
+  Sparkles,
+  User2,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -51,6 +50,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogFooter,
+  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 
 export default function ProfilePage({ params }) {
@@ -67,6 +67,7 @@ export default function ProfilePage({ params }) {
     ageMin: "",
     ageMax: "",
     religion: "",
+    caste: "", // Added caste filter to align with backend schema
   });
   const [activeTab, setActiveTab] = useState("profile");
   const [sendingRequest, setSendingRequest] = useState({});
@@ -74,11 +75,13 @@ export default function ProfilePage({ params }) {
   const [isConnected, setIsConnected] = useState(false);
   const [showReportDialog, setShowReportDialog] = useState(false);
   const [reportReason, setReportReason] = useState("");
+  const [invitedProfiles, setInvitedProfiles] = useState([]);
+  const [invitationMessage, setInvitationMessage] = useState("");
 
   // Default placeholder image
   const DEFAULT_IMAGE = "/default-profile.jpg"; // Ensure this exists in /public
 
-  // Fetch profile data, suggested profiles, and connection status
+  // Fetch profile data, suggested profiles, connection status, and invitations
   const fetchProfileData = useCallback(async () => {
     if (!resolvedParams?.id) {
       setError("Invalid profile ID");
@@ -90,11 +93,36 @@ export default function ProfilePage({ params }) {
     if (status !== "authenticated") return;
 
     try {
-      const [profileRes, suggestionsRes, requestsRes] = await Promise.all([
-        fetch(`/api/profiles/${resolvedParams.id}`, { credentials: "include" }),
-        fetch("/api/profiles", { credentials: "include" }),
-        fetch("/api/requests", { credentials: "include" }),
-      ]);
+      const [profileRes, suggestionsRes, requestsRes, userProfileRes] =
+        await Promise.all([
+          fetch(`/api/profiles/${resolvedParams.id}`, {
+            credentials: "include",
+          }),
+          fetch("/api/profiles", { credentials: "include" }),
+          fetch("/api/requests", { credentials: "include" }),
+          fetch("/api/profiles/me", { credentials: "include" }), // Fetch current user's profile
+        ]);
+
+      // Handle user profile fetch (to check if user has a profile)
+      if (!userProfileRes.ok) {
+        if (userProfileRes.status === 404) {
+          console.log("No user profile found, redirecting to create-profile");
+          toast.info("Please create your profile to view matches.", {
+            action: {
+              label: "Create Profile",
+              onClick: () => router.push("/create-profile"),
+            },
+          });
+          router.push("/create-profile");
+          return;
+        }
+        const text = await userProfileRes.text();
+        throw new Error(
+          `Failed to fetch user profile: ${userProfileRes.status} ${
+            text || "No response body"
+          }`
+        );
+      }
 
       // Handle profile fetch
       if (!profileRes.ok) {
@@ -109,12 +137,13 @@ export default function ProfilePage({ params }) {
         );
       }
       const profileData = await profileRes.json();
-      console.log("Profile data:", profileData);
+      console.log("Profile response:", profileData);
 
       // Validate photos
       const photos =
-        Array.isArray(profileData.photos) && profileData.photos.length
-          ? profileData.photos.filter((url) => {
+        Array.isArray(profileData.profile.photos) &&
+        profileData.profile.photos.length
+          ? profileData.profile.photos.filter((url) => {
               try {
                 new URL(url);
                 return true;
@@ -128,34 +157,73 @@ export default function ProfilePage({ params }) {
           : [DEFAULT_IMAGE];
 
       const formattedProfile = {
-        ...profileData,
+        userId: profileData.profile.userId,
+        name: profileData.profile.name || "Unknown",
+        age: profileData.profile.age || 0,
+        location: profileData.profile.location
+          ? `${profileData.profile.location}, India`
+          : "India",
+        occupation: profileData.profile.occupation || "Not specified",
+        education: profileData.profile.education?.degree || "Not specified",
+        bio: profileData.profile.bio || "No bio provided.",
+        height: profileData.profile.height
+          ? `${Math.floor(profileData.profile.height / 30.48)}\'${Math.round(
+              (profileData.profile.height % 30.48) / 2.54
+            )}\"`
+          : "Not specified",
+        weight: profileData.profile.weight || 0,
+        religion: profileData.profile.religion || "Not specified",
+        caste: profileData.profile.caste || "Not specified",
+        maritalStatus: profileData.profile.maritalStatus || "Not specified",
+        phone: profileData.profile.phone || "",
+        email: profileData.profile.email || "",
+        income: profileData.profile.income || 0,
+        familyType: profileData.profile.familyType || "Not specified",
+        familyStatus: profileData.profile.familyStatus || "Not specified",
+        familyValues: profileData.profile.familyValues || "Not specified",
+        diet: profileData.profile.diet || "Not specified",
+        smoking: profileData.profile.smoking || "Not specified",
+        drinking: profileData.profile.drinking || "Not specified",
+        partnerAgeMin: profileData.profile.partnerAgeMin || 18,
+        partnerAgeMax: profileData.profile.partnerAgeMax || 60,
+        partnerReligion: profileData.profile.partnerReligion || "Not specified",
+        partnerCaste: profileData.profile.partnerCaste || "Not specified",
         photos,
-        location: profileData.location || "India",
-        education: profileData.education?.degree || "Not specified",
-        verified: profileData.status === "approved",
-        premium: profileData.premium || false,
+        verified: profileData.profile.status === "approved",
+        premium: profileData.profile.premium || false,
         lastSeen:
-          profileData.lastSeen ||
-          (Math.random() > 0.7
+          Math.random() > 0.7
             ? "Online now"
-            : `${Math.floor(Math.random() * 24)} hours ago`),
+            : `${Math.floor(Math.random() * 24)} hours ago`,
       };
       setProfile(formattedProfile);
 
       // Handle suggested profiles
       if (!suggestionsRes.ok) {
+        const text = await suggestionsRes.text();
         throw new Error(
-          `Failed to fetch suggested profiles: ${suggestionsRes.status}`
+          `Failed to fetch suggested profiles: ${suggestionsRes.status} ${
+            text || "No response body"
+          }`
         );
       }
       const suggestionsData = await suggestionsRes.json();
-      console.log("Suggestions data:", suggestionsData);
+      console.log("Suggested profiles response:", suggestionsData);
 
       const formattedProfiles = Array.isArray(suggestionsData.profiles)
         ? suggestionsData.profiles
-            .filter((p) => p.status === "approved")
+            .filter(
+              (p) => p.status === "approved" && p.userId !== resolvedParams.id
+            )
             .map((p) => ({
-              ...p,
+              userId: p.userId,
+              name: p.name || "Unknown",
+              age: p.age || 0,
+              religion: p.religion || "Not specified",
+              caste: p.caste || "Not specified",
+              occupation: p.occupation || "Not specified",
+              education: p.education?.degree || "Not specified",
+              location: p.location ? `${p.location}, India` : "India",
               photos:
                 Array.isArray(p.photos) && p.photos.length
                   ? p.photos.filter((url) => {
@@ -164,21 +232,30 @@ export default function ProfilePage({ params }) {
                         return true;
                       } catch {
                         console.warn(
-                          `Invalid photo URL for suggestion ${p._id}: ${url}`
+                          `Invalid photo URL for suggestion ${p.userId}: ${url}`
                         );
                         return false;
                       }
                     })
                   : [DEFAULT_IMAGE],
-              location: p.location || "India",
-              education: p.education?.degree || "Not specified",
+              verified: p.status === "approved",
+              premium: Math.random() > 0.5,
             }))
         : [];
       setSuggestedProfiles(formattedProfiles);
 
-      // Handle connection status
-      if (!requestsRes.ok) throw new Error("Failed to fetch connection status");
+      // Handle connection and invitation status
+      if (!requestsRes.ok) {
+        const text = await requestsRes.text();
+        throw new Error(
+          `Failed to fetch connection status: ${requestsRes.status} ${
+            text || "No response body"
+          }`
+        );
+      }
       const requestsData = await requestsRes.json();
+      console.log("Requests response:", requestsData);
+
       const isMutual =
         Array.isArray(requestsData.invitations) &&
         requestsData.invitations.some(
@@ -189,20 +266,42 @@ export default function ProfilePage({ params }) {
         );
       setIsConnected(isMutual);
 
+      const sentProfileIds = Array.isArray(requestsData.invitations)
+        ? requestsData.invitations
+            .filter((inv) =>
+              ["pending", "accepted", "mutual"].includes(inv.status)
+            )
+            .map((inv) => inv.targetProfileId)
+        : [];
+      setInvitedProfiles(sentProfileIds);
+
       setIsLoading(false);
       setIsSuggestionsLoading(false);
       setError("");
     } catch (err) {
+      console.error("Fetch profile data error:", err.message, err.stack);
       const message = err.message || "Failed to load data.";
       setError(message);
       setIsLoading(false);
       setIsSuggestionsLoading(false);
-      toast.error(message, { description: "Error Loading Data" });
+      toast.error(message, {
+        description: "Error Loading Data",
+        icon: <Sparkles className="h-5 w-5 text-red-500" />,
+        style: {
+          background: "#ef4444",
+          color: "#ffffff",
+          border: "1px solid #dc2626",
+        },
+      });
     }
-  }, [resolvedParams?.id, status]);
+  }, [resolvedParams?.id, status, router]);
 
   useEffect(() => {
     if (status === "authenticated") {
+      console.log("Fetching profile data for user:", {
+        userId: session?.user?.id,
+        profileId: resolvedParams?.id,
+      });
       fetchProfileData();
     } else if (status === "unauthenticated") {
       setError("Please log in to view this profile.");
@@ -234,10 +333,93 @@ export default function ProfilePage({ params }) {
     }
   };
 
+  // Handle thumbnail click
+  const handleThumbnailClick = (index) => {
+    setCurrentImageIndex(index);
+  };
+
+  // Handle sending invitation
+  const handleSendInvitation = async (profileId, name) => {
+    if (status !== "authenticated") {
+      toast.error("Please log in to send an invitation", {
+        icon: <Sparkles className="h-5 w-5 text-red-500" />,
+        style: {
+          background: "#ef4444",
+          color: "#ffffff",
+          border: "1px solid #dc2626",
+        },
+      });
+      return;
+    }
+
+    try {
+      const response = await fetch("/api/requests", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          targetProfileId: profileId,
+          message: invitationMessage,
+        }),
+        credentials: "include",
+      });
+
+      let errorData;
+      try {
+        errorData = await response.json();
+      } catch {
+        errorData = { error: response.statusText || "Unknown error" };
+      }
+
+      if (!response.ok) {
+        let userFriendlyMessage =
+          errorData.error || "An error occurred while sending the invitation.";
+        if (response.status === 404) {
+          userFriendlyMessage = "Invitation service is currently unavailable.";
+        } else if (response.status === 401) {
+          userFriendlyMessage = "Please log in to send an invitation.";
+        } else if (response.status === 400 || response.status === 403) {
+          userFriendlyMessage = errorData.error;
+        }
+        throw new Error(userFriendlyMessage);
+      }
+
+      setInvitedProfiles((prev) => [...prev, profileId]);
+      toast.success("Invitation Sent!", {
+        description: `Your invitation has been sent to ${name}. We'll notify you when they respond.`,
+        duration: 5000,
+        icon: <Sparkles className="h-5 w-5 text-green-500" />,
+        style: {
+          background: "#22c55e",
+          color: "#ffffff",
+          border: "1px solid #16a34a",
+        },
+      });
+    } catch (err) {
+      console.error("Send invitation error:", err.message, err.stack);
+      toast.error("Failed to Send Invitation", {
+        description: err.message,
+        icon: <Sparkles className="h-5 w-5 text-red-500" />,
+        style: {
+          background: "#ef4444",
+          color: "#ffffff",
+          border: "1px solid #dc2626",
+        },
+      });
+    }
+  };
+
   // Handle sending connection request
   const handleSendRequest = async (targetUserId, actionType = "connect") => {
     if (!targetUserId) {
-      toast.error("Invalid user ID.", { description: "Request Failed" });
+      toast.error("Invalid user ID.", {
+        description: "Request Failed",
+        icon: <Sparkles className="h-5 w-5 text-red-500" />,
+        style: {
+          background: "#ef4444",
+          color: "#ffffff",
+          border: "1px solid #dc2626",
+        },
+      });
       return;
     }
 
@@ -247,7 +429,7 @@ export default function ProfilePage({ params }) {
       const res = await fetch("/api/requests", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ targetUserId }),
+        body: JSON.stringify({ targetProfileId: targetUserId }),
         credentials: "include",
       });
 
@@ -277,8 +459,16 @@ export default function ProfilePage({ params }) {
         }
       );
     } catch (err) {
-      const message = err.message || "Unknown error";
-      toast.error(message, { description: "Request Failed" });
+      console.error("Send request error:", err.message, err.stack);
+      toast.error(err.message || "Unknown error", {
+        description: "Request Failed",
+        icon: <Sparkles className="h-5 w-5 text-red-500" />,
+        style: {
+          background: "#ef4444",
+          color: "#ffffff",
+          border: "1px solid #dc2626",
+        },
+      });
     } finally {
       setSendingRequest((prev) => ({ ...prev, [targetUserId]: false }));
     }
@@ -319,6 +509,12 @@ export default function ProfilePage({ params }) {
     if (!reportReason.trim()) {
       toast.error("Please provide a reason for reporting.", {
         description: "Validation Error",
+        icon: <Sparkles className="h-5 w-5 text-red-500" />,
+        style: {
+          background: "#ef4444",
+          color: "#ffffff",
+          border: "1px solid #dc2626",
+        },
       });
       return;
     }
@@ -334,7 +530,12 @@ export default function ProfilePage({ params }) {
         credentials: "include",
       });
 
-      if (!res.ok) throw new Error("Failed to submit report");
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(
+          `Failed to submit report: ${res.status} ${text || "No response body"}`
+        );
+      }
 
       setShowReportDialog(false);
       setReportReason("");
@@ -348,9 +549,10 @@ export default function ProfilePage({ params }) {
         },
       });
     } catch (err) {
-      const message = err.message || "Unknown error";
+      console.error("Report error:", err.message, err.stack);
       toast.error("Failed to Submit Report", {
-        description: message,
+        description: err.message || "Unknown error",
+        icon: <Sparkles className="h-5 w-5 text-red-500" />,
         style: {
           background: "#ef4444",
           color: "#ffffff",
@@ -371,7 +573,10 @@ export default function ProfilePage({ params }) {
     const matchesReligion = filters.religion
       ? p.religion?.toLowerCase().includes(filters.religion.toLowerCase())
       : true;
-    return matchesAgeMin && matchesAgeMax && matchesReligion;
+    const matchesCaste = filters.caste
+      ? p.caste?.toLowerCase().includes(filters.caste.toLowerCase())
+      : true;
+    return matchesAgeMin && matchesAgeMax && matchesReligion && matchesCaste;
   });
 
   // Get initials for avatar fallback
@@ -383,6 +588,21 @@ export default function ProfilePage({ params }) {
       .join("")
       .toUpperCase()
       .slice(0, 2);
+  };
+
+  // Handle image error
+  const handleImageError = (profileId) => {
+    console.warn(`Failed to load image for profile ${profileId}`);
+    setProfile((prev) =>
+      prev && prev.userId === profileId
+        ? { ...prev, photos: [DEFAULT_IMAGE] }
+        : prev
+    );
+    setSuggestedProfiles((prev) =>
+      prev.map((p) =>
+        p.userId === profileId ? { ...p, photos: [DEFAULT_IMAGE] } : p
+      )
+    );
   };
 
   return (
@@ -414,8 +634,29 @@ export default function ProfilePage({ params }) {
           }
         }
       `}</style>
+      <Toaster position="top-right" closeButton richColors />
 
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-4 py-20">
+        {/* Notification Banner */}
+        {!isLoading && profile && session?.user?.id !== profile.userId && (
+          <Card className="mb-6 border border-white/10 bg-gray-900/70 backdrop-blur-lg text-white shadow-xl rounded-2xl">
+            <CardContent className="p-4 sm:p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+              <div className="text-sm md:text-base font-medium text-white">
+                You’ll receive the contact details once your request is
+                accepted. For any queries, feel free to reach out.
+              </div>
+              <Button
+                asChild
+                variant="outline"
+                size="sm"
+                className="bg-white/10 border-white/20 text-white hover:bg-white/20 transition-all duration-200 rounded-lg px-4 py-2"
+              >
+                <Link href="/contact">Contact Us</Link>
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <Link href="/profiles">
@@ -436,32 +677,106 @@ export default function ProfilePage({ params }) {
             >
               <Share2 className="h-4 w-4" />
             </Button>
-            {profile && session?.user?.id !== profile.userId?._id && (
+            {profile && session?.user?.id !== profile.userId && (
               <>
                 <Button
                   variant="outline"
                   size="icon"
                   className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white border-0"
-                  onClick={() =>
-                    handleSendRequest(profile.userId?._id, "connect")
-                  }
-                  disabled={sendingRequest[profile.userId?._id] || isConnected}
-                  aria-label="Connect with profile"
-                >
-                  <MessageCircle className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white border-0"
-                  onClick={() =>
-                    handleSendRequest(profile.userId?._id, "connect")
-                  }
-                  disabled={sendingRequest[profile.userId?._id] || isConnected}
+                  onClick={() => handleSendRequest(profile.userId, "connect")}
+                  disabled={sendingRequest[profile.userId] || isConnected}
                   aria-label="Connect with profile"
                 >
                   <Heart className="h-4 w-4" />
                 </Button>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className={`${
+                        invitedProfiles.includes(resolvedParams.id)
+                          ? "bg-pink-100 text-pink-600 hover:bg-pink-100 cursor-default"
+                          : "bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white border-0"
+                      }`}
+                      disabled={
+                        invitedProfiles.includes(resolvedParams.id) ||
+                        status !== "authenticated"
+                      }
+                    >
+                      <MessageCircle className="h-4 w-4" />
+                    </Button>
+                  </AlertDialogTrigger>
+                  {!invitedProfiles.includes(resolvedParams.id) && (
+                    <AlertDialogContent className="bg-black/80 border-white/10 text-white">
+                      <AlertDialogHeader>
+                        <AlertDialogTitle className="flex items-center gap-2">
+                          <Sparkles className="h-5 w-5 text-pink-500" />
+                          Send an Invitation
+                        </AlertDialogTitle>
+                        <AlertDialogDescription className="text-white/70">
+                          You are about to send a connection invitation to{" "}
+                          {profile?.name || "Unknown"}. They will be notified
+                          and can choose to accept or decline.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <div className="py-4">
+                        <div className="flex items-center gap-4">
+                          <div className="relative h-12 w-12 rounded-full overflow-hidden border border-white shadow-md">
+                            <Image
+                              src={profile?.photos?.[0] || DEFAULT_IMAGE}
+                              alt={profile?.name || "Profile"}
+                              fill
+                              className="object-contain"
+                              onError={() => handleImageError(profile.userId)}
+                            />
+                          </div>
+                          <div>
+                            <h4 className="font-medium text-white">
+                              {profile?.name || "Unknown"},{" "}
+                              {profile?.age || "N/A"}
+                            </h4>
+                            <p className="text-sm text-white/70">
+                              {profile?.location || "Not specified"}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="mt-4">
+                          <label className="text-sm font-medium text-white">
+                            Add a personal message (optional)
+                          </label>
+                          <textarea
+                            className="mt-1 w-full rounded-md border border-white/20 bg-white/10 p-2 text-sm text-white focus:border-pink-500 focus:ring focus:ring-pink-200 focus:ring-opacity-50"
+                            rows={3}
+                            placeholder="Hi! I found your profile interesting and would love to connect..."
+                            value={invitationMessage}
+                            onChange={(e) =>
+                              setInvitationMessage(e.target.value)
+                            }
+                          />
+                        </div>
+                      </div>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel className="bg-white/10 border-white/20 text-white hover:bg-white/20">
+                          Cancel
+                        </AlertDialogCancel>
+                        <AlertDialogAction
+                          className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700"
+                          onClick={() => {
+                            handleSendInvitation(
+                              resolvedParams.id,
+                              profile?.name || "Unknown"
+                            );
+                            setInvitationMessage("");
+                          }}
+                        >
+                          <MessageCircle className="h-4 w-4 mr-2" />
+                          Send Invitation
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  )}
+                </AlertDialog>
                 <Button
                   variant="outline"
                   size="icon"
@@ -492,7 +807,7 @@ export default function ProfilePage({ params }) {
           <div className="flex h-[400px] flex-col items-center justify-center gap-4">
             <p className="text-xl text-white/70">Profile not found.</p>
             <Button asChild>
-              <Link href="/dashboard">
+              <Link href="/">
                 <Home className="mr-2 h-4 w-4" />
                 Back to Dashboard
               </Link>
@@ -526,20 +841,17 @@ export default function ProfilePage({ params }) {
                 {/* Left Column - Images and Actions */}
                 <div className="lg:col-span-1">
                   <Card className="overflow-hidden border border-white/10 bg-white/5 backdrop-blur-sm mb-6">
-                    <div className="relative aspect-[3/4] overflow-hidden">
+                    <div className="relative aspect-[4/3] h-64 overflow-hidden">
                       <Image
-                        src={profile.photos[currentImageIndex] || DEFAULT_IMAGE}
+                        src={
+                          profile.photos?.[currentImageIndex] || DEFAULT_IMAGE
+                        }
                         alt={profile.name || "Profile"}
                         fill
                         className="object-contain"
-                        onError={(e) => {
-                          console.warn(
-                            `Failed to load image for profile ${resolvedParams.id}: ${profile.photos[currentImageIndex]}`
-                          );
-                          e.target.src = DEFAULT_IMAGE;
-                        }}
+                        onError={() => handleImageError(profile.userId)}
                       />
-                      {profile.photos.length > 1 && (
+                      {profile.photos?.length > 1 && (
                         <>
                           <button
                             onClick={prevImage}
@@ -598,36 +910,146 @@ export default function ProfilePage({ params }) {
                         </span>
                       </div>
                     </div>
+                    {profile.photos?.length > 1 && (
+                      <div className="p-4">
+                        <div className="grid grid-cols-4 gap-2">
+                          {profile.photos.map((photo, index) => (
+                            <div
+                              key={index}
+                              className={`relative h-16 cursor-pointer rounded overflow-hidden ${
+                                index === currentImageIndex
+                                  ? "ring-2 ring-pink-500"
+                                  : ""
+                              }`}
+                              onClick={() => handleThumbnailClick(index)}
+                            >
+                              <Image
+                                src={photo}
+                                alt={`Thumbnail ${index + 1}`}
+                                fill
+                                className="object-cover"
+                                onError={() => handleImageError(profile.userId)}
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                     <div className="space-y-3 p-4">
-                      {profile && session?.user?.id !== profile.userId?._id ? (
+                      {profile && session?.user?.id !== profile.userId ? (
                         <>
                           <Button
                             className="w-full bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white border-0"
                             onClick={() =>
-                              handleSendRequest(profile.userId?._id, "connect")
+                              handleSendRequest(profile.userId, "connect")
                             }
-                            disabled={sendingRequest[profile.userId?._id]}
+                            disabled={sendingRequest[profile.userId]}
                           >
                             <Heart className="h-4 w-4 mr-2" />
-                            {sendingRequest[profile.userId?._id]
+                            {sendingRequest[profile.userId]
                               ? "Connecting..."
                               : "Connect"}
                           </Button>
-                          <Button
-                            className="w-full bg-white/10 hover:bg-white/20 text-white border border-white/20"
-                            onClick={() =>
-                              handleSendRequest(
-                                profile.userId?._id,
-                                "invitation"
-                              )
-                            }
-                            disabled={sendingRequest[profile.userId?._id]}
-                          >
-                            <MessageCircle className="h-4 w-4 mr-2" />
-                            {sendingRequest[profile.userId?._id]
-                              ? "Sending..."
-                              : "Send Invitation"}
-                          </Button>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button
+                                className={`w-full ${
+                                  invitedProfiles.includes(resolvedParams.id)
+                                    ? "bg-pink-100 text-pink-600 hover:bg-pink-100 cursor-default"
+                                    : "bg-white/10 hover:bg-white/20 text-white border border-white/20"
+                                }`}
+                                disabled={invitedProfiles.includes(
+                                  resolvedParams.id
+                                )}
+                              >
+                                {invitedProfiles.includes(resolvedParams.id) ? (
+                                  <>
+                                    <MessageCircle className="h-4 w-4 mr-2" />
+                                    Invited
+                                  </>
+                                ) : (
+                                  <>
+                                    <MessageCircle className="h-4 w-4 mr-2" />
+                                    Send Invitation
+                                  </>
+                                )}
+                              </Button>
+                            </AlertDialogTrigger>
+                            {!invitedProfiles.includes(resolvedParams.id) && (
+                              <AlertDialogContent className="bg-black/80 border-white/10 text-white">
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle className="flex items-center gap-2">
+                                    <Sparkles className="h-5 w-5 text-pink-500" />
+                                    Send an Invitation
+                                  </AlertDialogTitle>
+                                  <AlertDialogDescription className="text-white/70">
+                                    You are about to send a connection
+                                    invitation to {profile.name || "Unknown"}.
+                                    They will be notified and can choose to
+                                    accept or decline.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <div className="py-4">
+                                  <div className="flex items-center gap-4">
+                                    <div className="relative h-12 w-12 rounded-full overflow-hidden border-2 border-pink-200">
+                                      <Image
+                                        src={
+                                          profile.photos?.[0] || DEFAULT_IMAGE
+                                        }
+                                        alt={profile.name || "Unknown"}
+                                        fill
+                                        className="object-contain"
+                                        onError={() =>
+                                          handleImageError(profile.userId)
+                                        }
+                                      />
+                                    </div>
+                                    <div>
+                                      <h4 className="font-medium text-white">
+                                        {profile.name || "Unknown"},{" "}
+                                        {profile.age || "N/A"}
+                                      </h4>
+                                      <p className="text-sm text-white/70">
+                                        {profile.location || "Not specified"}
+                                      </p>
+                                    </div>
+                                  </div>
+                                  <div className="mt-4">
+                                    <label className="text-sm font-medium text-white">
+                                      Add a personal message (optional)
+                                    </label>
+                                    <textarea
+                                      className="mt-1 w-full rounded-md border border-white/20 bg-white/10 p-2 text-sm text-white focus:border-pink-500 focus:ring focus:ring-pink-200 focus:ring-opacity-50"
+                                      rows={3}
+                                      placeholder="Hi! I found your profile interesting and would love to connect..."
+                                      value={invitationMessage}
+                                      onChange={(e) =>
+                                        setInvitationMessage(e.target.value)
+                                      }
+                                    />
+                                  </div>
+                                </div>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel className="bg-white/10 border-white/20 text-white hover:bg-white/20">
+                                    Cancel
+                                  </AlertDialogCancel>
+                                  <AlertDialogAction
+                                    className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700"
+                                    onClick={() => {
+                                      handleSendInvitation(
+                                        resolvedParams.id,
+                                        profile.name || "Unknown"
+                                      );
+                                      setInvitationMessage("");
+                                    }}
+                                  >
+                                    <MessageCircle className="h-4 w-4 mr-2" />
+                                    Send Invitation
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            )}
+                          </AlertDialog>
                           {isConnected && (
                             <div className="grid grid-cols-2 gap-2">
                               {profile.phone && (
@@ -676,11 +1098,11 @@ export default function ProfilePage({ params }) {
                           <div className="space-y-2">
                             <div className="flex items-center text-white/70">
                               <MapPin className="h-4 w-4 mr-2 text-pink-500" />
-                              {profile.location || "India"}
+                              {profile.location}
                             </div>
                             <div className="flex items-center text-white/70">
                               <Briefcase className="h-4 w-4 mr-2 text-pink-500" />
-                              {profile.occupation || "Not specified"}
+                              {profile.occupation}
                             </div>
                             <div className="flex items-center text-white/70">
                               <GraduationCap className="h-4 w-4 mr-2 text-pink-500" />
@@ -735,7 +1157,10 @@ export default function ProfilePage({ params }) {
                     <TabsContent value="about" className="mt-6">
                       <Card className="border border-white/10 bg-white/5 backdrop-blur-sm">
                         <CardHeader>
-                          <CardTitle className="text-white">About Me</CardTitle>
+                          <CardTitle className="text-white flex items-center">
+                            <User2 className="h-5 w-5 mr-2 text-pink-500" />
+                            About Me
+                          </CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-6">
                           <Collapsible>
@@ -743,7 +1168,7 @@ export default function ProfilePage({ params }) {
                               <p className="text-white/80 leading-relaxed">
                                 {profile.bio?.length > 200
                                   ? `${profile.bio.substring(0, 200)}...`
-                                  : profile.bio || "No bio provided."}
+                                  : profile.bio}
                               </p>
                               {profile.bio?.length > 200 && (
                                 <span className="text-pink-500 text-sm">
@@ -767,9 +1192,7 @@ export default function ProfilePage({ params }) {
                                 <div className="flex justify-between">
                                   <span className="text-white/60">Height:</span>
                                   <span className="text-white">
-                                    {profile.height
-                                      ? `${profile.height} cm`
-                                      : "N/A"}
+                                    {profile.height}
                                   </span>
                                 </div>
                                 <div className="flex justify-between">
@@ -785,13 +1208,13 @@ export default function ProfilePage({ params }) {
                                     Religion:
                                   </span>
                                   <span className="text-white">
-                                    {profile.religion || "N/A"}
+                                    {profile.religion}
                                   </span>
                                 </div>
                                 <div className="flex justify-between">
                                   <span className="text-white/60">Caste:</span>
                                   <span className="text-white">
-                                    {profile.caste || "N/A"}
+                                    {profile.caste}
                                   </span>
                                 </div>
                                 <div className="flex justify-between">
@@ -799,7 +1222,7 @@ export default function ProfilePage({ params }) {
                                     Marital Status:
                                   </span>
                                   <span className="text-white">
-                                    {profile.maritalStatus || "N/A"}
+                                    {profile.maritalStatus}
                                   </span>
                                 </div>
                               </div>
@@ -815,7 +1238,7 @@ export default function ProfilePage({ params }) {
                                     Occupation:
                                   </span>
                                   <span className="text-white">
-                                    {profile.occupation || "N/A"}
+                                    {profile.occupation}
                                   </span>
                                 </div>
                                 <div className="flex justify-between">
@@ -859,7 +1282,7 @@ export default function ProfilePage({ params }) {
                                   Family Type:
                                 </span>
                                 <span className="text-white">
-                                  {profile.familyType || "N/A"}
+                                  {profile.familyType}
                                 </span>
                               </div>
                               <div className="flex justify-between">
@@ -867,7 +1290,7 @@ export default function ProfilePage({ params }) {
                                   Family Status:
                                 </span>
                                 <span className="text-white">
-                                  {profile.familyStatus || "N/A"}
+                                  {profile.familyStatus}
                                 </span>
                               </div>
                               <div className="flex justify-between">
@@ -875,7 +1298,7 @@ export default function ProfilePage({ params }) {
                                   Family Values:
                                 </span>
                                 <span className="text-white">
-                                  {profile.familyValues || "N/A"}
+                                  {profile.familyValues}
                                 </span>
                               </div>
                             </div>
@@ -898,19 +1321,19 @@ export default function ProfilePage({ params }) {
                               <div className="flex justify-between">
                                 <span className="text-white/60">Diet:</span>
                                 <span className="text-white">
-                                  {profile.diet || "N/A"}
+                                  {profile.diet}
                                 </span>
                               </div>
                               <div className="flex justify-between">
                                 <span className="text-white/60">Smoking:</span>
                                 <span className="text-white">
-                                  {profile.smoking || "N/A"}
+                                  {profile.smoking}
                                 </span>
                               </div>
                               <div className="flex justify-between">
                                 <span className="text-white/60">Drinking:</span>
                                 <span className="text-white">
-                                  {profile.drinking || "N/A"}
+                                  {profile.drinking}
                                 </span>
                               </div>
                             </div>
@@ -934,23 +1357,18 @@ export default function ProfilePage({ params }) {
                                 <span className="text-white/60">
                                   Age Range:
                                 </span>
-                                <span className="text-white">
-                                  {profile.partnerAgeMin &&
-                                  profile.partnerAgeMax
-                                    ? `${profile.partnerAgeMin} - ${profile.partnerAgeMax} years`
-                                    : "N/A"}
-                                </span>
+                                <span className="text-white">{`${profile.partnerAgeMin} - ${profile.partnerAgeMax} years`}</span>
                               </div>
                               <div className="flex justify-between">
                                 <span className="text-white/60">Religion:</span>
                                 <span className="text-white">
-                                  {profile.partnerReligion || "N/A"}
+                                  {profile.partnerReligion}
                                 </span>
                               </div>
                               <div className="flex justify-between">
                                 <span className="text-white/60">Caste:</span>
                                 <span className="text-white">
-                                  {profile.partnerCaste || "N/A"}
+                                  {profile.partnerCaste}
                                 </span>
                               </div>
                             </div>
@@ -982,7 +1400,7 @@ export default function ProfilePage({ params }) {
                   <CollapsibleContent className="mt-4">
                     <Card className="border-white/10 bg-white/5 backdrop-blur-sm">
                       <CardContent className="p-4">
-                        <div className="grid gap-4 sm:grid-cols-3">
+                        <div className="grid gap-4 sm:grid-cols-4">
                           <div className="space-y-2">
                             <label
                               htmlFor="ageMin"
@@ -1033,6 +1451,22 @@ export default function ProfilePage({ params }) {
                               className="bg-white/10 border-white/20 text-white"
                             />
                           </div>
+                          <div className="space-y-2">
+                            <label
+                              htmlFor="caste"
+                              className="text-sm font-medium text-white"
+                            >
+                              Caste
+                            </label>
+                            <Input
+                              id="caste"
+                              name="caste"
+                              value={filters.caste}
+                              onChange={handleFilterChange}
+                              placeholder="Caste"
+                              className="bg-white/10 border-white/20 text-white"
+                            />
+                          </div>
                         </div>
                       </CardContent>
                     </Card>
@@ -1058,10 +1492,10 @@ export default function ProfilePage({ params }) {
               ) : (
                 <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
                   {filteredProfiles
-                    .filter((p) => p.userId?._id !== session?.user?.id)
-                    .map((profile) => (
+                    .filter((p) => p.userId !== session?.user?.id)
+                    .map((p) => (
                       <Card
-                        key={profile._id}
+                        key={p.userId}
                         className="overflow-hidden border-white/10 bg-white/5 backdrop-blur-sm"
                       >
                         <CardContent className="p-0">
@@ -1069,32 +1503,24 @@ export default function ProfilePage({ params }) {
                             <div className="flex items-center gap-4">
                               <Avatar className="h-16 w-16 border border-rose-200">
                                 <AvatarImage
-                                  src={profile.photos[0] || DEFAULT_IMAGE}
-                                  alt={profile.name}
-                                  onError={(e) => {
-                                    console.warn(
-                                      `Failed to load avatar for profile ${profile._id}: ${profile.photos[0]}`
-                                    );
-                                    e.target.src = DEFAULT_IMAGE;
-                                  }}
+                                  src={p.photos?.[0] || DEFAULT_IMAGE}
+                                  alt={p.name}
+                                  onError={() => handleImageError(p.userId)}
                                 />
                                 <AvatarFallback className="bg-rose-100 text-rose-700">
-                                  {getInitials(profile.name)}
+                                  {getInitials(p.name)}
                                 </AvatarFallback>
                               </Avatar>
                               <div>
                                 <h3 className="font-semibold text-white">
-                                  {profile.name}
+                                  {p.name}
                                 </h3>
                                 <p className="text-sm text-white/70">
-                                  {profile.age} years •{" "}
-                                  {profile.religion || "N/A"}
+                                  {p.age} years • {p.religion}
                                 </p>
-                                {profile.occupation && (
-                                  <p className="text-sm text-white/70">
-                                    {profile.occupation}
-                                  </p>
-                                )}
+                                <p className="text-sm text-white/70">
+                                  {p.occupation}
+                                </p>
                               </div>
                             </div>
                           </div>
@@ -1106,7 +1532,7 @@ export default function ProfilePage({ params }) {
                               size="sm"
                               className="gap-1 text-white hover:bg-white/10"
                             >
-                              <Link href={`/profiles/${profile._id}`}>
+                              <Link href={`/profiles/${p.userId}`}>
                                 <Eye className="h-4 w-4" />
                                 View
                               </Link>
@@ -1117,15 +1543,12 @@ export default function ProfilePage({ params }) {
                                 size="sm"
                                 className="gap-1 bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700"
                                 onClick={() =>
-                                  handleSendRequest(
-                                    profile.userId?._id,
-                                    "connect"
-                                  )
+                                  handleSendRequest(p.userId, "connect")
                                 }
-                                disabled={sendingRequest[profile.userId?._id]}
+                                disabled={sendingRequest[p.userId]}
                               >
                                 <Heart className="h-4 w-4" />
-                                {sendingRequest[profile.userId?._id]
+                                {sendingRequest[p.userId]
                                   ? "Connecting..."
                                   : "Connect"}
                               </Button>
@@ -1134,15 +1557,12 @@ export default function ProfilePage({ params }) {
                                 size="sm"
                                 className="gap-1 bg-white/10 border-white/20 text-white hover:bg-white/20"
                                 onClick={() =>
-                                  handleSendRequest(
-                                    profile.userId?._id,
-                                    "invitation"
-                                  )
+                                  handleSendRequest(p.userId, "invitation")
                                 }
-                                disabled={sendingRequest[profile.userId?._id]}
+                                disabled={sendingRequest[p.userId]}
                               >
                                 <MessageCircle className="h-4 w-4" />
-                                {sendingRequest[profile.userId?._id]
+                                {sendingRequest[p.userId]
                                   ? "Sending..."
                                   : "Send Invitation"}
                               </Button>

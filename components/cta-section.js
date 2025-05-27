@@ -3,6 +3,7 @@
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { ArrowRight } from "lucide-react";
+import Link from "next/link";
 
 export default function CtaSection() {
   return (
@@ -35,17 +36,19 @@ export default function CtaSection() {
             someone on our platform. Your journey to love starts here.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button
-              size="lg"
-              className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white border-0 h-12 px-6"
-            >
-              Create Free Profile
-              <ArrowRight className="ml-2 h-4 w-4" />
-            </Button>
+            <Link href="/register">
+              <Button
+                size="lg"
+                className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white border-0 h-12 px-6"
+              >
+                Create Free Profile
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+            </Link>
             <Button
               size="lg"
               variant="outline"
-              className="text-white border-white/20 hover:bg-white/10 h-12 px-6"
+              className="bg-white/10 border-white/20 text-white hover:bg-white/20"
             >
               Learn More
             </Button>

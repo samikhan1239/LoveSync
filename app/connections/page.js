@@ -1,14 +1,13 @@
 "use client";
-
+import Link from "next/link";
 import { useState, useEffect, useCallback } from "react";
 import Image from "next/image";
-import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Toaster, toast } from "sonner";
 import {
@@ -37,77 +36,72 @@ export default function ConnectionsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
 
-  const fetchProfile = async (userId) => {
-    try {
-      const res = await fetch(`/api/profiles?userId=${userId}`, {
-        credentials: "include",
-      });
-      if (!res.ok) throw new Error(`Failed to fetch profile: ${res.status}`);
-      const profile = await res.json();
-      return profile;
-    } catch (err) {
-      console.error("Fetch profile error:", err);
-      return null;
-    }
-  };
-
   const fetchInvitations = useCallback(async () => {
     setIsLoading(true);
     try {
-      const res = await fetch("/api/invitations", {
+      const res = await fetch("/api/invitations?page=1&limit=10", {
         credentials: "include",
       });
-      if (!res.ok)
-        throw new Error(`Failed to fetch invitations: ${res.status}`);
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(
+          `Failed to fetch invitations: ${res.status} - ${
+            errorData.error || "Unknown error"
+          }`
+        );
+      }
       const { invitations } = await res.json();
 
-      const enrichedInvitations = await Promise.all(
-        invitations.map(async (inv) => {
-          const senderProfile = await fetchProfile(inv.senderId._id);
-          const receiverProfile = await fetchProfile(inv.receiverId._id);
-          const isSender = inv.senderId._id === session.user.id;
-          const otherProfile = isSender ? receiverProfile : senderProfile;
+      const enrichedInvitations = invitations.map((inv) => {
+        const isSender = inv.senderId === session.user.id;
+        const otherProfile = isSender ? inv.receiverProfile : inv.senderProfile;
+        const phoneNumber = isSender
+          ? inv.receiverProfile?.phone
+          : inv.senderProfile?.phone;
+        const otherUserId = isSender ? inv.receiverId : inv.senderId;
 
-          return {
-            id: inv._id,
-            name: otherProfile?.name || "Unknown",
-            age: otherProfile?.age || 0,
-            location: otherProfile?.location || "N/A",
-            occupation: otherProfile?.occupation || "N/A",
-            education: otherProfile?.education?.degree || "N/A",
-            image: otherProfile?.image || "/placeholder.svg",
-            phoneNumber: otherProfile?.phoneNumber || "N/A",
-            sentDate: inv.createdAt,
-            status: inv.status,
-            message: inv.message,
-            verified: otherProfile?.verified || false,
-            premium: otherProfile?.premium || false,
-            connectedDate:
-              inv.status === "accepted" || inv.status === "mutual"
-                ? inv.updatedAt
-                : null,
-            lastMessage: inv.lastMessage || "",
-          };
-        })
-      );
+        return {
+          id: inv._id,
+          userId: otherUserId,
+          receiverId: inv.receiverId,
+          name: otherProfile?.name || "Unknown",
+          age: otherProfile?.age || 0,
+          location: otherProfile?.location || "N/A",
+          occupation: otherProfile?.occupation || "N/A",
+          education: otherProfile?.education?.degree || "N/A",
+          image: otherProfile?.photos?.[0] || "/placeholder.svg",
+          phoneNumber: phoneNumber || "N/A",
+          sentDate: inv.createdAt,
+          status: inv.status,
+          message: inv.message,
+          verified: otherProfile?.verified || false,
+          premium: otherProfile?.premium || false,
+          connectedDate:
+            inv.status === "accepted" || inv.status === "mutual"
+              ? inv.updatedAt
+              : null,
+          lastMessage: inv.lastMessage || "",
+        };
+      });
 
-      const incoming = enrichedInvitations.filter(
-        (inv) => inv.status === "pending" && inv.receiverId === session.user.id
+      setIncomingRequests(
+        enrichedInvitations.filter(
+          (inv) =>
+            inv.status === "pending" && inv.receiverId === session.user.id
+        )
       );
-      const sent = enrichedInvitations.filter(
-        (inv) => inv.senderId === session.user.id
+      setSentRequests(
+        enrichedInvitations.filter((inv) => inv.senderId === session.user.id)
       );
-      const connected = enrichedInvitations.filter(
-        (inv) => inv.status === "accepted" || inv.status === "mutual"
+      setConnections(
+        enrichedInvitations.filter(
+          (inv) => inv.status === "accepted" || inv.status === "mutual"
+        )
       );
-
-      setIncomingRequests(incoming);
-      setSentRequests(sent);
-      setConnections(connected);
       setError("");
     } catch (err) {
       console.error("Fetch invitations error:", err);
-      setError("Failed to load connections. Please try again.");
+      setError(`Failed to load connections: ${err.message}`);
       toast.error("Failed to load connections.");
     } finally {
       setIsLoading(false);
@@ -126,35 +120,49 @@ export default function ConnectionsPage() {
 
   const handleAcceptRequest = async (requestId) => {
     try {
-      const res = await fetch(`/api/invitations/${requestId}`, {
+      const res = await fetch(`/api/invitations`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ status: "accepted" }),
+        body: JSON.stringify({ invitationId: requestId, status: "accepted" }),
       });
-      if (!res.ok) throw new Error(`Failed to accept request: ${res.status}`);
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(
+          `Failed to accept request: ${res.status} - ${
+            errorData.error || "Unknown error"
+          }`
+        );
+      }
       toast.success("Request accepted successfully!");
       fetchInvitations();
     } catch (err) {
       console.error("Accept request error:", err);
-      toast.error("Failed to accept request.");
+      toast.error(`Failed to accept request: ${err.message}`);
     }
   };
 
   const handleRejectRequest = async (requestId) => {
     try {
-      const res = await fetch(`/api/invitations/${requestId}`, {
+      const res = await fetch(`/api/invitations`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ status: "declined" }),
+        body: JSON.stringify({ invitationId: requestId, status: "declined" }),
       });
-      if (!res.ok) throw new Error(`Failed to reject request: ${res.status}`);
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(
+          `Failed to decline request: ${res.status} - ${
+            errorData.error || "Unknown error"
+          }`
+        );
+      }
       toast.success("Request declined successfully!");
       fetchInvitations();
     } catch (err) {
       console.error("Reject request error:", err);
-      toast.error("Failed to reject request.");
+      toast.error(`Failed to decline request: ${err.message}`);
     }
   };
 
@@ -171,26 +179,24 @@ export default function ConnectionsPage() {
       <div className="container mx-auto px-4 py-8 flex items-center justify-center min-h-screen">
         <div className="flex flex-col items-center gap-4">
           <Loader2 className="h-12 w-12 animate-spin text-transparent bg-clip-text bg-gradient-to-r from-pink-500 to-purple-600" />
-          <p className="text-white/70 text-lg">Loading connections...</p>
+          <p className="text-white/70 text-lg">Loading...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="mx-auto px-4 py-8 relative min-h-screen bg-gradient-to-b from-slate-950 via-indigo-950 to-slate-950 animate-fade-in">
+    <div className="mx-auto px-4 py-24 relative sm:min-w-[640px] min-h-screen">
       <Toaster richColors position="top-right" />
-      {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-3xl md:text-4xl font-bold mb-4 bg-gradient-to-r from-pink-500 to-purple-600 bg-clip-text text-transparent">
+      <div className="mb-4">
+        <h1 className="text-3xl md:text-4xl font-bold mb-4 text-center bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent leading-tight">
           My Connections
         </h1>
-        <p className="text-white/70 text-lg">
+        <p className="text-gray-400 text-lg">
           Manage your connection requests and chat with your matches
         </p>
       </div>
 
-      {/* Error Message */}
       {error && (
         <div className="mb-6">
           <Card className="border border-red-500/20 bg-red-500/10">
@@ -201,7 +207,6 @@ export default function ConnectionsPage() {
         </div>
       )}
 
-      {/* Stats Cards */}
       <div className="grid grid-cols-2 gap-4 mb-8 max-w-2xl mx-auto">
         {[
           { label: "Requests Received", value: stats.totalReceived },
@@ -211,13 +216,13 @@ export default function ConnectionsPage() {
         ].map((stat) => (
           <Card
             key={stat.label}
-            className="border border-white/10 bg-white/5 backdrop-blur-sm shadow-md min-w-[150px]"
+            className="border border-gray-700/50 bg-white/5 backdrop-blur-sm shadow-md min-w-[150px]"
           >
             <CardContent className="p-4 text-center">
               <div className="text-2xl md:text-3xl font-bold text-white mb-2">
                 {stat.value}
               </div>
-              <div className="text-white/70 text-sm md:text-base">
+              <div className="text-gray-400 text-sm md:text-base">
                 {stat.label}
               </div>
             </CardContent>
@@ -225,42 +230,40 @@ export default function ConnectionsPage() {
         ))}
       </div>
 
-      {/* Main Content */}
-      <Card className="border border-white/10 bg-white/5 backdrop-blur-sm">
+      <Card className="border border-gray-700/50 bg-white/5 backdrop-blur-sm">
         <CardHeader>
           <CardTitle className="text-white">Connection Management</CardTitle>
         </CardHeader>
         <CardContent>
           <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="grid w-full grid-cols-3 bg-white/10 border border-white/20 mb-6">
+            <TabsList className="grid w-full grid-cols-3 bg-gray-800/50 border border-gray-600/50 mb-6 rounded-lg">
               <TabsTrigger
                 value="received"
-                className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-pink-500 data-[state=active]:to-purple-600 text-white"
+                className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600 data-[state=active]:to-pink-600 data-[state=active]:text-white text-gray-300 hover:text-white"
               >
                 Received ({stats.totalReceived})
               </TabsTrigger>
               <TabsTrigger
                 value="sent"
-                className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-pink-500 data-[state=active]:to-purple-600 text-white"
+                className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600 data-[state=active]:to-pink-600 data-[state=active]:text-white text-gray-300 hover:text-white"
               >
                 Sent ({stats.totalSent})
               </TabsTrigger>
               <TabsTrigger
                 value="approved"
-                className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-pink-500 data-[state=active]:to-purple-600 text-white"
+                className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600 data-[state=active]:to-pink-600 data-[state=active]:text-white text-gray-300 hover:text-white"
               >
                 Approved ({stats.totalConnections})
               </TabsTrigger>
             </TabsList>
 
-            {/* Search Bar */}
             <div className="relative mb-6">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-white/50 h-4 w-4" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
               <Input
                 placeholder="Search connections..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 bg-white/10 border-white/20 text-white placeholder:text-white/50 focus:border-pink-500"
+                className="pl-10 bg-gray-800/50 border-gray-600/50 text-white placeholder:text-gray-400 focus:border-purple-500 rounded-lg"
               />
             </div>
 
@@ -273,7 +276,7 @@ export default function ConnectionsPage() {
                   .map((request) => (
                     <Card
                       key={request.id}
-                      className="border border-white/10 bg-white/5 backdrop-blur-sm"
+                      className="border border-gray-700/50 bg-white/5 backdrop-blur-sm shadow-md rounded-xl"
                     >
                       <CardContent className="p-4">
                         <div className="flex flex-col md:flex-row gap-4">
@@ -299,41 +302,43 @@ export default function ConnectionsPage() {
                                   {request.name}, {request.age}
                                 </h3>
                                 {request.premium && (
-                                  <Badge className="bg-gradient-to-r from-yellow-500 to-orange-500 text-white text-xs">
+                                  <Badge className="bg-gradient-to-r from-yellow-400 to-orange-500 text-white text-xs">
                                     Premium
                                   </Badge>
                                 )}
                               </div>
-                              <div className="space-y-1 text-sm text-white/70">
+                              <div className="space-y-1 text-sm text-gray-400">
                                 <div className="flex items-center">
-                                  <MapPin className="h-3 w-3 mr-1 text-pink-500" />
-                                  {request.location}
+                                  <MapPin className="h-4 w-4 mr-1 text-purple-500 flex-shrink-0" />
+                                  <span>{request.location}</span>
                                 </div>
                                 <div className="flex items-center">
-                                  <Briefcase className="h-3 w-3 mr-1 text-pink-500" />
-                                  {request.occupation}
+                                  <Briefcase className="h-4 w-4 mr-1 text-purple-500 flex-shrink-0" />
+                                  <span>{request.occupation}</span>
                                 </div>
                                 <div className="flex items-center">
-                                  <Calendar className="h-3 w-3 mr-1 text-pink-500" />
-                                  Sent on{" "}
-                                  {new Date(
-                                    request.sentDate
-                                  ).toLocaleDateString()}
+                                  <Calendar className="h-4 w-4 mr-1 text-purple-500 flex-shrink-0" />
+                                  <span>
+                                    Sent on{" "}
+                                    {new Date(
+                                      request.sentDate
+                                    ).toLocaleDateString()}
+                                  </span>
                                 </div>
                               </div>
                               {request.message && (
-                                <div className="mt-2 p-2 bg-white/5 rounded text-white/80 text-sm">
+                                <div className="mt-2 p-2 bg-gray-800/50 rounded text-gray-300 text-sm">
                                   {request.message}
                                 </div>
                               )}
                             </div>
                           </div>
                           <div className="flex flex-col gap-2 md:w-32">
-                            <Link href={`/profiles/${request.id}`}>
+                            <Link href={`/profiles/${request.userId}`}>
                               <Button
                                 variant="outline"
                                 size="sm"
-                                className="w-full border-white/20 text-white hover:bg-white/10"
+                                className="w-full border-gray-600/50 text-white hover:bg-gray-700/50"
                               >
                                 <Eye className="h-4 w-4 mr-1" />
                                 View
@@ -373,7 +378,7 @@ export default function ConnectionsPage() {
                   .map((request) => (
                     <Card
                       key={request.id}
-                      className="border border-white/10 bg-white/5 backdrop-blur-sm"
+                      className="border border-gray-700/50 bg-white/5 backdrop-blur-sm shadow-md rounded-xl"
                     >
                       <CardContent className="p-4">
                         <div className="flex flex-col md:flex-row gap-4">
@@ -399,26 +404,28 @@ export default function ConnectionsPage() {
                                   {request.name}, {request.age}
                                 </h3>
                                 {request.premium && (
-                                  <Badge className="bg-gradient-to-r from-yellow-500 to-orange-500 text-white text-xs">
+                                  <Badge className="bg-gradient-to-r from-yellow-400 to-orange-500 text-white text-xs">
                                     Premium
                                   </Badge>
                                 )}
                               </div>
-                              <div className="space-y-1 text-sm text-white/70">
+                              <div className="space-y-1 text-sm text-gray-400">
                                 <div className="flex items-center">
-                                  <MapPin className="h-3 w-3 mr-1 text-pink-500" />
-                                  {request.location}
+                                  <MapPin className="h-4 w-4 mr-1 text-purple-500 flex-shrink-0" />
+                                  <span>{request.location}</span>
                                 </div>
                                 <div className="flex items-center">
-                                  <Briefcase className="h-3 w-3 mr-1 text-pink-500" />
-                                  {request.occupation}
+                                  <Briefcase className="h-4 w-4 mr-1 text-purple-500 flex-shrink-0" />
+                                  <span>{request.occupation}</span>
                                 </div>
                                 <div className="flex items-center">
-                                  <Calendar className="h-3 w-3 mr-1 text-pink-500" />
-                                  Sent on{" "}
-                                  {new Date(
-                                    request.sentDate
-                                  ).toLocaleDateString()}
+                                  <Calendar className="h-4 w-4 mr-1 text-purple-500 flex-shrink-0" />
+                                  <span>
+                                    Sent on{" "}
+                                    {new Date(
+                                      request.sentDate
+                                    ).toLocaleDateString()}
+                                  </span>
                                 </div>
                               </div>
                             </div>
@@ -447,11 +454,11 @@ export default function ConnectionsPage() {
                               {request.status.charAt(0).toUpperCase() +
                                 request.status.slice(1)}
                             </Badge>
-                            <Link href={`/profiles/${request.id}`}>
+                            <Link href={`/profiles/${request.userId}`}>
                               <Button
                                 variant="outline"
                                 size="sm"
-                                className="w-full bg-white/10 border-white/20 text-white hover:bg-white/20"
+                                className="w-full bg-gray-800/50 border-gray-600/50 text-white hover:bg-gray-700/50"
                               >
                                 <Eye className="h-4 w-4 mr-1" />
                                 View
@@ -461,7 +468,7 @@ export default function ConnectionsPage() {
                               request.status === "mutual") && (
                               <Button
                                 size="sm"
-                                className="w-full bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white border-0"
+                                className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white border-0"
                               >
                                 <MessageCircle className="h-4 w-4 mr-1" />
                                 Chat
@@ -484,7 +491,7 @@ export default function ConnectionsPage() {
                   .map((connection) => (
                     <Card
                       key={connection.id}
-                      className="border border-white/10 bg-white/5 backdrop-blur-sm"
+                      className="border border-gray-700/50 bg-white/5 backdrop-blur-sm shadow-md rounded-xl"
                     >
                       <CardContent className="p-4">
                         <div className="flex flex-col md:flex-row gap-4">
@@ -510,34 +517,46 @@ export default function ConnectionsPage() {
                                   {connection.name}, {connection.age}
                                 </h3>
                                 {connection.premium && (
-                                  <Badge className="bg-gradient-to-r from-yellow-500 to-orange-500 text-white text-xs">
+                                  <Badge className="bg-gradient-to-r from-yellow-400 to-orange-500 text-white text-xs">
                                     Premium
                                   </Badge>
                                 )}
                               </div>
-                              <div className="space-y-1 text-sm text-white/70">
+                              <div className="space-y-1 text-sm text-gray-400">
                                 <div className="flex items-center">
-                                  <MapPin className="h-3 w-3 mr-1 text-pink-500" />
-                                  {connection.location}
+                                  <MapPin className="h-4 w-4 mr-1 text-purple-500 flex-shrink-0" />
+                                  <span>{connection.location}</span>
                                 </div>
                                 <div className="flex items-center">
-                                  <Briefcase className="h-3 w-3 mr-1 text-pink-500" />
-                                  {connection.occupation}
+                                  <Briefcase className="h-4 w-4 mr-1 text-purple-500 flex-shrink-0" />
+                                  <span>{connection.occupation}</span>
                                 </div>
+                                {connection.phoneNumber !== "N/A" && (
+                                  <div className="flex items-center gap-2">
+                                    <Phone className="h-4 w-4 text-green-500 flex-shrink-0" />
+                                    <a
+                                      href={`tel:${connection.phoneNumber}`}
+                                      className="text-sm text-white hover:text-purple-500 transition-colors truncate"
+                                    >
+                                      {connection.phoneNumber}
+                                    </a>
+                                    <Badge className="bg-green-500/20 text-green-300 text-xs">
+                                      Shared
+                                    </Badge>
+                                  </div>
+                                )}
                                 <div className="flex items-center">
-                                  <Phone className="h-3 w-3 mr-1 text-pink-500" />
-                                  {connection.phoneNumber}
-                                </div>
-                                <div className="flex items-center">
-                                  <Calendar className="h-3 w-3 mr-1 text-pink-500" />
-                                  Approved on{" "}
-                                  {new Date(
-                                    connection.connectedDate
-                                  ).toLocaleDateString()}
+                                  <Calendar className="h-4 w-4 mr-1 text-purple-500 flex-shrink-0" />
+                                  <span>
+                                    Approved on{" "}
+                                    {new Date(
+                                      connection.connectedDate
+                                    ).toLocaleDateString()}
+                                  </span>
                                 </div>
                               </div>
                               {connection.lastMessage && (
-                                <div className="mt-2 p-2 bg-white/5 rounded text-white/80 text-sm">
+                                <div className="mt-2 p-2 bg-gray-800/50 rounded text-gray-300 text-sm">
                                   <MessageCircle className="h-3 w-3 inline mr-1" />
                                   {connection.lastMessage}
                                 </div>
@@ -545,11 +564,11 @@ export default function ConnectionsPage() {
                             </div>
                           </div>
                           <div className="flex flex-col gap-2 md:w-32">
-                            <Link href={`/profiles/${connection.id}`}>
+                            <Link href={`/profiles/${connection.userId}`}>
                               <Button
                                 variant="outline"
                                 size="sm"
-                                className="w-full bg-white/10 border-white/20 text-white hover:bg-white/20"
+                                className="w-full bg-gray-800/50 border-gray-600/50 text-white hover:bg-gray-700/50"
                               >
                                 <Eye className="h-4 w-4 mr-1" />
                                 View
@@ -557,7 +576,7 @@ export default function ConnectionsPage() {
                             </Link>
                             <Button
                               size="sm"
-                              className="w-full bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white border-0"
+                              className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white border-0"
                             >
                               <MessageCircle className="h-4 w-4 mr-1" />
                               Chat
@@ -565,7 +584,7 @@ export default function ConnectionsPage() {
                             <Button
                               variant="outline"
                               size="sm"
-                              className="w-full bg-white/10 border-white/20 text-white hover:bg-white/20"
+                              className="w-full bg-gray-800/50 border-gray-600/50 text-white hover:bg-gray-700/50"
                             >
                               <Heart className="h-4 w-4 mr-1" />
                               Favorite

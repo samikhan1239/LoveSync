@@ -1,13 +1,12 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect } from "react";
 import { useSession, signOut } from "next-auth/react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import Image from "next/image";
 import { motion } from "framer-motion";
 import {
   Heart,
@@ -421,7 +420,18 @@ export default function UserDashboard() {
     setIsClient(true);
   }, []);
 
-  const fetchProfile = useCallback(async () => {
+  useEffect(() => {
+    if (status === "loading") return;
+
+    if (status === "authenticated" && session?.user?.id) {
+      fetchProfile();
+    } else if (status === "unauthenticated") {
+      setError("Please log in to view your profile.");
+      router.push("/signin");
+    }
+  }, [session, status, router]);
+
+  const fetchProfile = async () => {
     try {
       const res = await fetch("/api/profiles", { credentials: "include" });
       if (!res.ok) {
@@ -533,26 +543,7 @@ export default function UserDashboard() {
       setIsSubmitted(false);
       setIsEditing(true);
     }
-  }, [
-    session,
-    reset,
-    setProfile,
-    setError,
-    setPreviewPhotos,
-    setIsSubmitted,
-    setIsEditing,
-  ]);
-
-  useEffect(() => {
-    if (status === "loading") return;
-
-    if (status === "authenticated" && session?.user?.id) {
-      fetchProfile();
-    } else if (status === "unauthenticated") {
-      setError("Please log in to view your profile.");
-      router.push("/signin");
-    }
-  }, [session, status, router, fetchProfile]);
+  };
 
   const onSubmit = async (data) => {
     try {
@@ -752,7 +743,7 @@ export default function UserDashboard() {
   };
 
   const handleContactUs = () => {
-    router.push("/contact-us");
+    router.push("/contact");
   };
 
   const handleBioSuggestion = (bio) => {
@@ -1549,11 +1540,9 @@ export default function UserDashboard() {
                   key={index}
                   className="relative aspect-square border-2 border-dashed border-white/20 rounded-lg bg-white/5"
                 >
-                  <Image
+                  <img
                     src={photo}
                     alt={`Preview ${index + 1}`}
-                    width={200}
-                    height={200}
                     className="w-full h-full object-cover rounded-lg"
                   />
                   <Button
@@ -1687,35 +1676,7 @@ export default function UserDashboard() {
         </div>
       )}
 
-      <nav className="bg-gradient-to-r from-pink-500 to-purple-600 text-white p-4 shadow-md relative z-20">
-        <div className="max-w-7xl mx-auto flex justify-between items-center">
-          <div className="text-xl font-bold">Matrimonial App</div>
-          <div className="flex space-x-4">
-            <Link
-              href="/"
-              className="hover:bg-white/10 px-3 py-2 rounded transition text-white"
-            >
-              Home
-            </Link>
-            <Link
-              href="/dashboard"
-              className="hover:bg-white/10 px-3 py-2 rounded transition text-white"
-            >
-              Profile
-            </Link>
-            <Button
-              variant="ghost"
-              onClick={() => signOut({ callbackUrl: "/" })}
-              className="hover:bg-white/10 text-white"
-            >
-              <LogOut className="h-5 w-5 mr-2" />
-              Logout
-            </Button>
-          </div>
-        </div>
-      </nav>
-
-      <div className="container mx-auto px-4 py-8 relative z-10">
+      <div className="container mx-auto px-4 py-24 relative z-10">
         <div className="text-center mb-8">
           <h1 className="text-3xl md:text-4xl font-bold mb-4 bg-gradient-to-r from-pink-500 to-purple-600 bg-clip-text text-transparent">
             Your Matrimonial Profile
@@ -1773,23 +1734,19 @@ export default function UserDashboard() {
                       Profile Photo
                     </h4>
                     <div className="flex justify-center">
-                      <Image
+                      <img
                         src={profile.photos[0]}
                         alt="Primary Profile Photo"
-                        width={192}
-                        height={192}
                         className="w-48 h-48 object-cover rounded-full border-4 border-pink-500 shadow-lg"
                       />
                     </div>
                     {profile.photos.length > 1 && (
                       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mt-4">
                         {profile.photos.slice(1).map((photo, index) => (
-                          <Image
+                          <img
                             key={index}
                             src={photo}
                             alt={`Profile Photo ${index + 2}`}
-                            width={200}
-                            height={128}
                             className="w-full h-32 object-cover rounded-lg border-2 border-white/20"
                           />
                         ))}

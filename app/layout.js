@@ -3,6 +3,7 @@ import AuthProvider from "./provider";
 import Navbar from "@/components/Navbar";
 
 import "./globals.css";
+import FloatingElements from "@/components/floating-elements";
 
 export const metadata = {
   title: "Matrimonial App",
@@ -14,7 +15,11 @@ export default function RootLayout({ children }) {
     <html lang="en">
       <body>
         <AuthProvider>
-          <main>{children}</main>
+          <FloatingElements />
+          <Navbar />
+          <main className="relative min-h-screen overflow-hidden bg-gradient-to-b from-slate-950 via-indigo-950 to-slate-950">
+            {children}
+          </main>
         </AuthProvider>
       </body>
     </html>
