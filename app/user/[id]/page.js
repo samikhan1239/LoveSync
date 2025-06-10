@@ -37,6 +37,7 @@ import {
   Trash2,
   ArrowLeft,
 } from "lucide-react";
+import Link from "next/link";
 
 const DEFAULT_IMAGE = "/placeholder.svg?height=400&width=300";
 const availableInterests = [
@@ -400,10 +401,10 @@ export default function UserProfile() {
               className="bg-white/10 border-white/20 text-white hover:bg-white/20"
               asChild
             >
-              <a href="/profiles">
+              <Link href="/profiles">
                 <ArrowLeft className="h-4 w-4 mr-2" />
                 Back to Profiles
-              </a>
+              </Link>
             </Button>
           )}
           <h1 className="text-4xl md:text-4xl font-bold bg-gradient-to-r from-pink-500 to-purple-600 bg-clip-text text-transparent">
