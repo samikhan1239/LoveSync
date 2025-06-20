@@ -186,7 +186,7 @@ export default function Navbar() {
                 </DropdownMenuContent>
               </DropdownMenu>
             ) : (
-              <Link href="/signin">
+              <Link href="/login">
                 <Button className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white border-0 text-sm">
                   Sign In
                 </Button>
@@ -272,7 +272,7 @@ export default function Navbar() {
                 </DropdownMenuContent>
               </DropdownMenu>
             ) : (
-              <Link href="/signin">
+              <Link href="/login">
                 <Button className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white border-0 text-sm">
                   Sign In
                 </Button>
@@ -330,7 +330,7 @@ export default function Navbar() {
             </Link>
             {status !== "authenticated" && (
               <Link
-                href="/signin"
+                href="/login"
                 className="block py-2 text-white/80 hover:text-white"
                 onClick={() => setIsMenuOpen(false)}
               >

@@ -926,7 +926,7 @@ export default function UserDashboard() {
                 )}
               </div>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="weight" className="text-white">
                   Weight (kg) *
@@ -972,7 +972,7 @@ export default function UserDashboard() {
                 )}
               </div>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-3 md:grid-cols-1 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="religion" className="text-white">
                   Religion *
@@ -1039,7 +1039,7 @@ export default function UserDashboard() {
                 )}
               </div>
             </div>
-            <div className="space-y-2">
+            <div className="space-y-2 ">
               <Label htmlFor="maritalStatus" className="text-white">
                 Marital Status *
               </Label>
