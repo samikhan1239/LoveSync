@@ -9,7 +9,7 @@ import { motion } from "framer-motion";
 
 export default function HeroSection() {
   const [currentImage, setCurrentImage] = useState(0);
-  const images = ["/bg.png", "/bg4.png", "/bg1.png"];
+  const images = ["/bg6.png", "/bg4.png", "/bg1.png"];
 
   useEffect(() => {
     const interval = setInterval(() => {

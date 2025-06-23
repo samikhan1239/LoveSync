@@ -308,10 +308,10 @@ const ProfilesPage = () => {
             toast.info("Please create your profile to view matches.", {
               action: {
                 label: "Create Profile",
-                onClick: () => router.push("/create-profile"),
+                onClick: () => router.push("/dashboard/user"),
               },
             });
-            router.push("/create-profile");
+            router.push("/dashboard/user");
             return;
           }
           const text = await response.text();
@@ -1124,7 +1124,7 @@ const ProfilesPage = () => {
                               src={profile.images[0]}
                               alt={profile.name}
                               fill
-                              className="object-contain rounded-t-lg"
+                              className="object-contain object-top rounded-t-lg"
                               onError={() => handleImageError(profile.userId)}
                             />
                             <div className="absolute top-2 left-2 flex flex-col gap-1">

@@ -79,7 +79,7 @@ export default function Navbar() {
               Profiles
             </Link>
             <Link
-              href="/dashboard"
+              href="/"
               className="text-white/80 hover:text-white transition-colors text-sm font-medium"
             >
               Success Stories
@@ -155,7 +155,7 @@ export default function Navbar() {
                   </DropdownMenuItem>
                   <DropdownMenuItem className="hover:bg-white/10 cursor-pointer">
                     <Link
-                      href="/create-profile"
+                      href="/dashobard/user"
                       className="flex items-center w-full"
                     >
                       <Plus className="h-4 w-4 mr-2" />
@@ -194,7 +194,7 @@ export default function Navbar() {
             )}
 
             {status === "authenticated" && (
-              <Link href="/create-profile">
+              <Link href="/cdashboard/user">
                 <Button className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white border-0 text-sm">
                   Create Profile
                 </Button>
@@ -241,7 +241,7 @@ export default function Navbar() {
                   </DropdownMenuItem>
                   <DropdownMenuItem className="hover:bg-white/10 cursor-pointer">
                     <Link
-                      href="/create-profile"
+                      href="/dashboard/user"
                       className="flex items-center w-full"
                     >
                       <Plus className="h-4 w-4 mr-2" />
@@ -315,7 +315,7 @@ export default function Navbar() {
               Profiles
             </Link>
             <Link
-              href="/dashboard"
+              href="/"
               className="block py-2 text-white/80 hover:text-white"
               onClick={() => setIsMenuOpen(false)}
             >

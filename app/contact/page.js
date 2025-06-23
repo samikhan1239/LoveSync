@@ -91,7 +91,7 @@ export default function ContactUs() {
   ];
 
   return (
-    <div className="container mx-auto px-4 py-8 bg-gradient-to-b from-slate-950 via-indigo-950 to-slate-950 animate-fade-in">
+    <div className="container mx-auto px-4 py-20 bg-gradient-to-b from-slate-950 via-indigo-950 to-slate-950 animate-fade-in">
       {/* Header */}
       <div className="text-center mb-12">
         <h1 className="text-4xl md:text-5xl font-bold mb-6 bg-gradient-to-r from-pink-500 to-purple-600 bg-clip-text text-transparent">
@@ -168,8 +168,8 @@ export default function ContactUs() {
               <div className="relative w-64 h-64 mx-auto lg:mx-0 mb-6">
                 <div className="absolute inset-0 bg-gradient-to-r from-pink-500 to-purple-600 rounded-full blur-lg opacity-30" />
                 <Image
-                  src="/placeholder.svg?height=256&width=256"
-                  alt="Rajesh Kumar - Co-Founder"
+                  src="/sami1.jpg"
+                  alt="Sami Khan - Co-Founder"
                   width={256}
                   height={256}
                   className="relative rounded-full object-cover border-4 border-pink-500/30"

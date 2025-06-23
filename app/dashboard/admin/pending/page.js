@@ -62,16 +62,16 @@ const AdminLayout = ({ children }) => {
   const pathname = usePathname();
 
   const navItems = [
-    { name: "Dashboard", href: "/admin/dashboard", icon: LayoutDashboard },
-    { name: "Profiles", href: "/admin/profiles", icon: Users },
+    { name: "Dashboard", href: "/dashboard/admin", icon: LayoutDashboard },
+    { name: "Profiles", href: "/admin/all-profiles", icon: Users },
     { name: "Invitations", href: "/dashboard/admin/invitations", icon: Heart },
     { name: "Pending Requests", href: "/dashboard/admin/pending", icon: Clock },
     { name: "Settings", href: "/admin/settings", icon: Settings },
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-950 via-indigo-950 to-slate-950">
-      <div className="lg:hidden fixed top-4 left-4 z-50">
+    <div className="min-h-screen bg-gradient-to-b from-slate-950 via-indigo-950 to-slate-950 py-20">
+      <div className="lg:hidden fixed top-4 left-4 z-50 py-10">
         <Button
           variant="outline"
           size="icon"
@@ -94,12 +94,7 @@ const AdminLayout = ({ children }) => {
       >
         <div className="flex flex-col h-full">
           <div className="flex items-center justify-center h-16 border-b border-white/10">
-            <div className="flex items-center space-x-2">
-              <Heart className="h-7 w-7 text-pink-500 fill-pink-500" />
-              <span className="font-bold text-xl bg-gradient-to-r from-pink-500 to-purple-600 bg-clip-text text-transparent">
-                LoveSync Admin
-              </span>
-            </div>
+            <div className="flex items-center space-x-2 py-10"></div>
           </div>
 
           <nav className="flex-1 px-4 py-6 space-y-1 overflow-y-auto">
@@ -139,64 +134,6 @@ const AdminLayout = ({ children }) => {
       </aside>
 
       <div className="lg:pl-64">
-        <header className="sticky top-0 z-30 bg-black/50 backdrop-blur-lg border-b border-white/10">
-          <div className="flex items-center justify-between h-16 px-4 lg:px-8">
-            <div className="flex items-center flex-1">
-              <div className="lg:hidden w-8"></div>
-              <div className="relative max-w-md w-full mx-auto lg:mx-0">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-white/50 h-4 w-4" />
-                <input
-                  type="text"
-                  placeholder="Search..."
-                  className="w-full bg-white/10 border-white/20 rounded-full pl-10 pr-4 py-2 text-sm text-white placeholder:text-white/50 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent"
-                />
-              </div>
-            </div>
-
-            <div className="flex items-center space-x-4">
-              <Button
-                variant="ghost"
-                size="icon"
-                className="relative text-white/80 hover:text-white hover:bg-white/10"
-              >
-                <Bell className="h-5 w-5" />
-                <span className="absolute -top-1 -right-1 bg-pink-500 text-white text-xs rounded-full h-4 w-4 flex items-center justify-center">
-                  3
-                </span>
-              </Button>
-
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    className="flex items-center space-x-2 text-white/80 hover:text-white hover:bg-white/10"
-                  >
-                    <div className="w-8 h-8 rounded-full bg-gradient-to-r from-pink-500 to-purple-600 flex items-center justify-center">
-                      <span className="text-white font-medium">A</span>
-                    </div>
-                    <span className="hidden md:inline-block">Admin User</span>
-                    <ChevronDown className="h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent
-                  align="end"
-                  className="w-56 bg-black/80 backdrop-blur-lg border-slate-800 text-white"
-                >
-                  <DropdownMenuItem className="hover:bg-white/10 cursor-pointer">
-                    Profile
-                  </DropdownMenuItem>
-                  <DropdownMenuItem className="hover:bg-white/10 cursor-pointer">
-                    Settings
-                  </DropdownMenuItem>
-                  <DropdownMenuItem className="hover:bg-white/10 cursor-pointer">
-                    Logout
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-          </div>
-        </header>
-
         <main className="p-4 lg:p-8">{children}</main>
       </div>
     </div>

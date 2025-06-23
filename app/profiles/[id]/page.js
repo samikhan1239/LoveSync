@@ -110,10 +110,10 @@ export default function ProfilePage({ params }) {
           toast.info("Please create your profile to view matches.", {
             action: {
               label: "Create Profile",
-              onClick: () => router.push("/create-profile"),
+              onClick: () => router.push("/dashboard/user"),
             },
           });
-          router.push("/create-profile");
+          router.push("/dashboard/user");
           return;
         }
         const text = await userProfileRes.text();
