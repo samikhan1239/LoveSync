@@ -98,8 +98,8 @@ export default function ContactUs() {
           Contact Us
         </h1>
         <p className="text-xl text-white/80 max-w-3xl mx-auto">
-          We're here to help you find your perfect match. Get in touch with our
-          team for any questions, support, or feedback.
+          We&apos;re here to help you find your perfect match. Get in touch with
+          our team for any questions, support, or feedback.
         </p>
       </div>
 
@@ -112,14 +112,14 @@ export default function ContactUs() {
                 About LoveSync
               </h2>
               <p className="text-white/80 text-lg leading-relaxed mb-6">
-                LoveSync is India's most trusted matrimonial platform,
+                LoveSync is India&apos;s most trusted matrimonial platform,
                 connecting hearts and creating lasting relationships since 2020.
                 We believe that everyone deserves to find their perfect life
                 partner, and our advanced AI-powered matching system makes it
                 easier than ever.
               </p>
               <p className="text-white/80 text-lg leading-relaxed mb-6">
-                With over 2 million active users across 500+ cities, we've
+                With over 2 million active users across 500+ cities, we&apos;ve
                 successfully helped thousands of couples find their soulmates.
                 Our commitment to privacy, security, and authentic connections
                 sets us apart in the industry.
@@ -524,8 +524,8 @@ export default function ContactUs() {
                   How do I create a profile?
                 </h4>
                 <p className="text-white/70 text-sm">
-                  Click on "Create Profile" and follow our step-by-step process
-                  to build your detailed matrimonial profile.
+                  Click on Create Profile and follow our step-by-step process to
+                  build your detailed matrimonial profile.
                 </p>
               </div>
               <div>

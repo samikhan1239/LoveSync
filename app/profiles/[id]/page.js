@@ -308,7 +308,7 @@ export default function ProfilePage({ params }) {
       setIsLoading(false);
       setIsSuggestionsLoading(false);
     }
-  }, [status, fetchProfileData]);
+  }, [status, fetchProfileData, resolvedParams?.id, session?.user?.id]);
 
   // Handle filter input changes
   const handleFilterChange = (e) => {

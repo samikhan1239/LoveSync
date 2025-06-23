@@ -212,12 +212,7 @@ const ProfilesPage = () => {
     selectedReligion,
   ]);
 
-  const debouncedApplyFilters = useCallback(
-    debounce(() => {
-      applyFilters();
-    }, 300),
-    [applyFilters]
-  );
+  const debouncedApplyFilters = debounce((applyFilters) => applyFilters(), 300);
 
   const applyRecommendedFilters = useCallback(() => {
     if (!userProfile || !profiles.length) return;
@@ -1108,8 +1103,8 @@ const ProfilesPage = () => {
                         No Recommended Profiles
                       </h3>
                       <p className="text-white/70 mb-6 max-w-md mx-auto">
-                        We couldn't find profiles matching your preferences. Try
-                        updating your partner preferences!
+                        We couldn&apos;t find profiles matching your
+                        preferences. Try updating your partner preferences!
                       </p>
                     </div>
                   ) : (

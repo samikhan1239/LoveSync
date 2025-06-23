@@ -1,11 +1,12 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useSession, signOut } from "next-auth/react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import {
@@ -429,9 +430,9 @@ export default function UserDashboard() {
       setError("Please log in to view your profile.");
       router.push("/signin");
     }
-  }, [session, status, router]);
+  }, [session, status, router, fetchProfile]);
 
-  const fetchProfile = async () => {
+  const fetchProfile = useCallback(async () => {
     try {
       const res = await fetch("/api/profiles", { credentials: "include" });
       if (!res.ok) {
@@ -543,7 +544,7 @@ export default function UserDashboard() {
       setIsSubmitted(false);
       setIsEditing(true);
     }
-  };
+  }, [session, reset]);
 
   const onSubmit = async (data) => {
     try {
@@ -1540,11 +1541,14 @@ export default function UserDashboard() {
                   key={index}
                   className="relative aspect-square border-2 border-dashed border-white/20 rounded-lg bg-white/5"
                 >
-                  <img
-                    src={photo}
-                    alt={`Preview ${index + 1}`}
-                    className="w-full h-full object-cover rounded-lg"
-                  />
+                  <div className="relative w-full h-full">
+                    <Image
+                      src={photo}
+                      alt={`Preview ${index + 1}`}
+                      fill
+                      className="object-cover rounded-lg"
+                    />
+                  </div>
                   <Button
                     variant="destructive"
                     size="icon"
@@ -1734,21 +1738,30 @@ export default function UserDashboard() {
                       Profile Photo
                     </h4>
                     <div className="flex justify-center">
-                      <img
+                      <Image
                         src={profile.photos[0]}
                         alt="Primary Profile Photo"
-                        className="w-48 h-48 object-cover rounded-full border-4 border-pink-500 shadow-lg"
+                        width={192} // 48 * 4 (for 4x pixel density)
+                        height={192}
+                        className="object-cover rounded-full border-4 border-pink-500 shadow-lg"
                       />
                     </div>
                     {profile.photos.length > 1 && (
                       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mt-4">
                         {profile.photos.slice(1).map((photo, index) => (
-                          <img
-                            key={index}
-                            src={photo}
-                            alt={`Profile Photo ${index + 2}`}
-                            className="w-full h-32 object-cover rounded-lg border-2 border-white/20"
-                          />
+                          <div
+                            key={`photo-${index}`}
+                            className="relative w-full h-32"
+                          >
+                            {" "}
+                            {/* Add key here */}
+                            <Image
+                              src={photo}
+                              alt={`Profile Photo ${index + 2}`}
+                              fill
+                              className="object-cover rounded-lg border-2 border-white/20"
+                            />
+                          </div>
                         ))}
                       </div>
                     )}
