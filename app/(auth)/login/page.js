@@ -75,7 +75,7 @@ export default function Login() {
       if (session.user.role === "admin") {
         router.push("/dashboard/admin");
       } else {
-        router.push("/profiles");
+        router.push("/dashboard/user");
       }
     } catch (err) {
       setError("Failed to fetch session. Please try again.");
