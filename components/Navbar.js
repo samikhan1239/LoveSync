@@ -225,7 +225,7 @@ export default function Navbar() {
             )}
 
             {status === "authenticated" && (
-              <Link href="/dashboard/user">
+              <Link href="/register">
                 <Button className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white border-0 text-sm">
                   Create Profile
                 </Button>
