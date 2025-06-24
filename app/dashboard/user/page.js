@@ -417,21 +417,6 @@ export default function UserDashboard() {
     },
   });
 
-  useEffect(() => {
-    setIsClient(true);
-  }, []);
-
-  useEffect(() => {
-    if (status === "loading") return;
-
-    if (status === "authenticated" && session?.user?.id) {
-      fetchProfile();
-    } else if (status === "unauthenticated") {
-      setError("Please log in to view your profile.");
-      router.push("/signin");
-    }
-  }, [session, status, router, fetchProfile]);
-
   const fetchProfile = useCallback(async () => {
     try {
       const res = await fetch("/api/profiles", { credentials: "include" });
@@ -545,6 +530,21 @@ export default function UserDashboard() {
       setIsEditing(true);
     }
   }, [session, reset]);
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+
+  useEffect(() => {
+    if (status === "loading") return;
+
+    if (status === "authenticated" && session?.user?.id) {
+      fetchProfile();
+    } else if (status === "unauthenticated") {
+      setError("Please log in to view your profile.");
+      router.push("/signin");
+    }
+  }, [session, status, router, fetchProfile]);
 
   const onSubmit = async (data) => {
     try {

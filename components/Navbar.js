@@ -1,3 +1,4 @@
+// components/Navbar.js
 "use client";
 
 import { useState, useEffect } from "react";
@@ -29,11 +30,13 @@ export default function Navbar() {
   const [isVisible, setIsVisible] = useState(true);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [lastScrollY, setLastScrollY] = useState(0);
+  const [isClient, setIsClient] = useState(false);
 
+  // Ensure client-side only effects
   useEffect(() => {
+    setIsClient(true);
     const handleScroll = () => {
       const currentScrollY = window.scrollY;
-
       if (currentScrollY <= 10) {
         setIsVisible(true);
         setIsScrolled(false);
@@ -41,13 +44,41 @@ export default function Navbar() {
         setIsVisible(currentScrollY < lastScrollY);
         setIsScrolled(true);
       }
-
       setLastScrollY(currentScrollY);
     };
 
     window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
   }, [lastScrollY]);
+
+  // Avoid rendering sensitive UI during loading
+  if (!isClient || status === "loading") {
+    return (
+      <header className="fixed top-0 left-0 right-0 z-50 bg-black/70 backdrop-blur-lg shadow-lg h-16 md:h-20">
+        <div className="container mx-auto px-4">
+          <div className="flex items-center justify-between h-full">
+            <Link href="/" className="flex items-center space-x-2">
+              <Heart className="h-7 w-7 text-pink-500 fill-pink-500" />
+              <span className="font-bold text-xl md:text-2xl bg-gradient-to-r from-pink-500 to-purple-600 bg-clip-text text-transparent">
+                LoveSync
+              </span>
+            </Link>
+            <div className="flex lg:hidden items-center space-x-3">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="text-white"
+                onClick={() => setIsMenuOpen(!isMenuOpen)}
+              >
+                <Menu className="h-6 w-6" />
+                <span className="sr-only">Toggle Menu</span>
+              </Button>
+            </div>
+          </div>
+        </div>
+      </header>
+    );
+  }
 
   return (
     <header
@@ -64,7 +95,7 @@ export default function Navbar() {
             </span>
           </Link>
 
-          {/* Desktop Navigation (visible on lg and above) */}
+          {/* Desktop Navigation */}
           <nav className="hidden lg:flex items-center space-x-8">
             <Link
               href="/"
@@ -92,7 +123,7 @@ export default function Navbar() {
             </Link>
           </nav>
 
-          {/* Desktop Action Buttons (visible on lg and above) */}
+          {/* Desktop Action Buttons */}
           <div className="hidden lg:flex items-center space-x-4">
             <Link href="/search">
               <Button
@@ -155,7 +186,7 @@ export default function Navbar() {
                   </DropdownMenuItem>
                   <DropdownMenuItem className="hover:bg-white/10 cursor-pointer">
                     <Link
-                      href="/dashobard/user"
+                      href="/dashboard/user"
                       className="flex items-center w-full"
                     >
                       <Plus className="h-4 w-4 mr-2" />
@@ -194,7 +225,7 @@ export default function Navbar() {
             )}
 
             {status === "authenticated" && (
-              <Link href="/cdashboard/user">
+              <Link href="/dashboard/user">
                 <Button className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white border-0 text-sm">
                   Create Profile
                 </Button>
